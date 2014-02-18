@@ -1,0 +1,6 @@
+*.o
+billiards
+*.dat
+*~
+*.swp
+*.swo
