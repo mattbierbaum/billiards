@@ -24,10 +24,13 @@
 
 #define M_PI 3.14159265358979323846
 
+#define SIGN(x) ((x) <= 0 ? -1 : 1)
+
 //========================================================
 /* These are functions that should be called externally */
-int trackTrajectory(double *p, double *v, double eta, double xi, double *traj);
 int trackBall(double *p, double *v, double eta, double xi, double *t);
+int trackTrajectory(double *p, double *v, double eta, double xi, double *traj,
+        int *tlen, int maxlen);
 
 //========================================================
 /* internal use functions only */
@@ -43,6 +46,5 @@ void normal(double *pos, int obj, double *out);
 void reflect(double *r, double *normal, double *out, double restore);
 double collide_rail(double *p, double *v, double *r0, double *r1);
 double collide_circle(double *p, double *v, double *c, double rad);
-int docollision(double *p, double *v, double eta, double xi, 
-        int last, double *tcoll, int *next);
+int docollision(double *p, double *v, int last, double *tcoll, int *next);
 #endif

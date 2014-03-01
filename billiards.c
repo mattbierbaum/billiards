@@ -46,7 +46,7 @@ int main(int argc, char **argv){
             steps++;
 
             double xin[2] = {ci, cj};
-            double vin[2] = {i-N/2, j-N/2};
+            double vin[2] = {(double)(i-N/2), (double)(j-N/2)};
 
             int b = trackBall(xin, vin, eta, xi, &ttotal);
             bounces[i+j*N] = b;

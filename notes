@@ -11,3 +11,12 @@ locations:
         (1045, 45) : (1039, 87) L, (1003, 48) D
         (545, 21) : (518, 48) D, (574, 48) D
 
+Some effects that I want to document
+ * as you increase the hitting the speed, the chances that you randomly 
+   end up in a hole actually goes up quite a bit (radial probability
+   function with radius as velocity or just set random conditions and
+   make histogram - probably this one)
+ * adding the corners makes the system chaotic, but only slightly so
+ * can turn on the chaos by chaning the size of a ball that we introduce
+   and look at effect vs. radius of ball
+ * analyze angular error of shots I guess?

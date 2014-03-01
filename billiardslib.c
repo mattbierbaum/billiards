@@ -14,7 +14,6 @@ int TOBJS[NOBJS] = {
     /*T_BALL*/
 };
 
-
 double OBJS[NOBJS][6] = {
     /* rail,    x0   y0    x1   y1   normal */
     {   64,  87,   64, 508,  1,  0}, 
@@ -47,6 +46,8 @@ double OBJS[NOBJS][6] = {
     {  545,  21, RADIUS_POCKET, UNUSED, UNUSED, UNUSED},
 
     /*{  -100,  276,  180, UNUSED, UNUSED, UNUSED},*/
+    /*{  545,  600,  180, UNUSED, UNUSED, UNUSED},*/
+    /*{  100,  100,  3, UNUSED, UNUSED, UNUSED},*/
 };
 
 //============================================================================
@@ -70,8 +71,8 @@ inline void position(double *x0, double *v0, double t, double *out){
 }
 
 inline void velocity(double *v0, double t, double eta, double *out){
-    out[0] = v0[0] - eta*t;
-    out[1] = v0[1] - eta*t;
+    out[0] = v0[0] - eta*t*SIGN(v0[0]);
+    out[1] = v0[1] - eta*t*SIGN(v0[1]);
 }
 
 //============================================================================
@@ -137,8 +138,7 @@ double collide_circle(double *p, double *v, double *cr, double rad){
 // finds the collision time for an initial condition
 // by finding the roots of a poly and finding the nearest collision
 //============================================================================
-int docollision(double *pos, double *vel, double eta, double xi, int last,
-        double *tcoll, int *next){
+int docollision(double *pos, double *vel, int last, double *tcoll, int *next){
     /* 
      * This functions determines whether a particular trajectory collides
      * with different parts of the table and returns:
@@ -164,17 +164,17 @@ int docollision(double *pos, double *vel, double eta, double xi, int last,
 
         if (type == T_RAIL)
             ttmp = collide_rail(tpos, tvel, &o[0], &o[2]);
-        //if (type == T_CORNER)
-        //    ttmp = collide_circle(tpos, tvel, &o[0], o[2]);
+        if (type == T_CORNER)
+            ttmp = collide_circle(tpos, tvel, &o[0], o[2]);
         if (type == T_POCKET)
             ttmp = collide_circle(tpos, tvel, &o[0], o[2]);
         if (type == T_BALL)
             ttmp = collide_circle(tpos, tvel, &o[0], o[2]);
 
         if (ttmp > 0 && (isnan(*tcoll) || ttmp < *tcoll)){
-            *tcoll = ttmp;// + eta + xi;
+            *tcoll = ttmp;
             *next = i;
-            if (type == T_RAIL || type == T_CORNER)
+            if (type == T_RAIL || type == T_CORNER || type == T_BALL)
                 outcome = RESULT_COLLISION;
             else
                 outcome = RESULT_INPOCKET;
@@ -188,7 +188,7 @@ int trackBall(double *pos, double *vel, double eta, double xi, double *t){
     double tcoll, vlen, ttotal;
 
     int tbounces = 0;
-    double tpos[2], tvel[2], norm[2];
+    double tpos[2], tvel[2], norm[2], tmpvel[2];
     memcpy(tpos, pos, sizeof(double)*2);
     memcpy(tvel, vel, sizeof(double)*2);
 
@@ -198,15 +198,18 @@ int trackBall(double *pos, double *vel, double eta, double xi, double *t){
     while (tbounces < MAX_COLLISIONS){
         // get the next collision
         actlast = actnext;
-        result = docollision(tpos, tvel, eta, xi, actlast, &tcoll, &actnext);
+        result = docollision(tpos, tvel, actlast, &tcoll, &actnext);
 
-        if (result == RESULT_NOTHING)
-            return 0;
-        if (result == RESULT_INPOCKET)
-            break;
+        // here we see if friction stops the ball 
+        velocity(tvel, tcoll, eta, tmpvel);
+        if (!isnan(tcoll) && (tvel[0]*tmpvel[0] < 0 || tvel[1]*tmpvel[1] < 0))
+            break;//return 0;  // FIXME - should be break?
 
-        ttotal += tcoll;
+        if (result == RESULT_NOTHING)  return 0;  // FIXME - should never
+        if (result == RESULT_INPOCKET) break;
+
         // figure out where it hit and what speed
+        ttotal += tcoll;
         position(tpos, tvel, tcoll, tpos);
         velocity(tvel, tcoll, eta, tvel);
 
@@ -219,6 +222,63 @@ int trackBall(double *pos, double *vel, double eta, double xi, double *t){
     }
 
     *t = ttotal;
+    return tbounces;
+}
+
+
+int trackTrajectory(double *pos, double *vel, double eta, double xi, double *traj, 
+        int *tlen, int maxlen){
+    int result, actlast, actnext;
+    double tcoll, vlen, ttotal;
+
+    int tbounces = 0;
+    double tpos[2], tvel[2], norm[2], tmpvel[2];
+    memcpy(tpos, pos, sizeof(double)*2);
+    memcpy(tvel, vel, sizeof(double)*2);
+
+    traj[0] = pos[0];
+    traj[1] = pos[1];
+    *tlen = 0;
+    ttotal = 0;
+    actlast = -1;
+    actnext = -1;
+    while (tbounces < MAX_COLLISIONS){
+        // get the next collision
+        actlast = actnext;
+        result = docollision(tpos, tvel, actlast, &tcoll, &actnext);
+
+        velocity(tvel, tcoll, eta, tmpvel);
+        if (!isnan(tcoll) && (tvel[0]*tmpvel[0] < 0 || tvel[1]*tmpvel[1] < 0))
+            break;
+
+        if (result == RESULT_NOTHING)
+            return 0;
+        if (result == RESULT_INPOCKET)
+            break;
+
+        // here we see if friction stops the ball 
+        // entirely, or what the appropriate velocity
+        // should be
+
+        // figure out where it hit and what speed
+        ttotal += tcoll;
+        position(tpos, tvel, tcoll, tpos);
+        velocity(tvel, tcoll, eta, tvel);
+
+        if (*tlen < maxlen){
+            traj[*tlen+0] = tpos[0];
+            traj[*tlen+1] = tpos[1];
+            (*tlen)++;
+        }
+
+        vlen = dot(tvel, tvel);
+        if (vlen < XTOL) break;
+
+        normal(tpos, actnext, norm);
+        reflect(tvel, norm, tvel, xi);
+        tbounces++;
+    }
+
     return tbounces;
 }
 
