@@ -5,18 +5,13 @@
 #include <time.h>
 #include "billiardslib.h"
 
-#define XSCAN_UNITQUAD {2.0*i/N-1, 2.0*j/N-1, height}
-#define XSCAN_UNITLINE {1.0*(i+j*N)/(N*N), 1.0*(i+j*N)/(N*N), height}
-#define XSCAN_HEIGHT {1.0*i/N, 1.0*i/N, height+ 0.5*(double)j/N}
-#define XSCAN_HEXAGON {6.0*i/N-3.0, 6.0*j/N-2.0, 0.75 + 5*(double)j/N}
-
 int main(int argc, char **argv){
-    if (argc != 5){
-        printf("<N> <feltspeed> <wallrestore> <filename>\n");
+    if (argc != 6){
+        printf("<N> <feltspeed> <wallrestore> <n-samles> <filename>\n");
         return 1;
     }
-
-    int N;
+    ran_seed(19238);
+    int N, samples;
     double eta = 0.0;
     double xi = 1.0;
     char filename[1024];
@@ -24,18 +19,19 @@ int main(int argc, char **argv){
     N = atoi(argv[1]);
     eta = atof(argv[2]);
     xi = atof(argv[3]);
-    strncpy(filename, argv[4], 1024);
+    samples = atoi(argv[4]);
+    strncpy(filename, argv[5], 1024);
 
     double ttotal = 0.0;
-    int *bounces = malloc(sizeof(int)*N*N);
+    int *bounces = malloc(sizeof(int)*N*N/2);
 
     double rate = 0.0;
     struct timespec start, end;
     clock_gettime(CLOCK_REALTIME, &start);
 
     int tbounces, lastact;
-    int ci = 545;
-    int cj = 276;
+    int imin = 65, imax = 1023;
+    int jmin = 61, jmax = 532;
     int steps = 0;
     int userinformed = 0;
     #pragma omp parallel shared(userinformed)
@@ -43,17 +39,19 @@ int main(int argc, char **argv){
 
         userinformed = 0;
         #pragma omp for nowait schedule(dynamic,N/16) reduction(+:steps)
-        for (int j=0; j<N; j++){
+        for (int j=0; j<N/2; j++){
             steps++;
 
-            double xin[2] = {ci, cj};
-            double vin[2] = {(double)(i-N/2), (double)(j-N/2)};
+            double xin[2] = {(double)((imax-imin)*i)/N + imin,
+                             (double)((jmax-jmin)*j)/(N/2) + jmin};
 
-            int rr = trackBall(xin, vin, eta, xi, &ttotal, &tbounces, &lastact);
-            if (rr == RESULT_INPOCKET)
-                bounces[i+j*N] = tbounces;
-            else
-                bounces[i+j*N] = 0;
+            for (int kk=0; kk<samples; kk++){
+                double vin[2] = {ran_ran2()*N-N/2, ran_ran2()*N-N/2};
+
+                int rr = trackBall(xin, vin, eta, xi, &ttotal, &tbounces, &lastact);
+                if (rr == RESULT_INPOCKET)
+                    bounces[i+j*N] += 1;//tbounces;
+            }
         }
 
         if (!userinformed)
@@ -61,14 +59,14 @@ int main(int argc, char **argv){
             userinformed = 1;
             clock_gettime(CLOCK_REALTIME, &end);
             rate = steps/((end.tv_sec-start.tv_sec)+(end.tv_nsec-start.tv_nsec)/1e9);
-            printf("done: %0.4f \t rate: %0.2f\r", (float)steps/(N*N), rate);
+            printf("done: %0.4f \t rate: %0.2f\r", (float)steps/(N*N/2), rate);
             fflush(stdout);
         }
     }
     printf("done: %0.4f \t rate: %0.2f\n", (float)steps/(N*N), rate);
 
     FILE *f = fopen(filename, "wb");
-    fwrite(bounces, sizeof(int), N*N, f);
+    fwrite(bounces, sizeof(int), N*N/2, f);
     fclose(f);
 
     free(bounces);

@@ -50,6 +50,26 @@ double OBJS[NOBJS][6] = {
     /*{  100,  100,  3, UNUSED, UNUSED, UNUSED},*/
 };
 
+typedef unsigned long long int ullong;
+ullong vseed;
+ullong vran;
+
+//=================================================
+// random number generator
+//=================================================
+void ran_seed(long j){
+  vseed = j;  vran = 4101842887655102017LL;
+  vran ^= vseed;
+  vran ^= vran >> 21; vran ^= vran << 35; vran ^= vran >> 4;
+  vran = vran * 2685821657736338717LL;
+}
+
+float ran_ran2(){
+    vran ^= vran >> 21; vran ^= vran << 35; vran ^= vran >> 4;
+    ullong t = vran * 2685821657736338717LL;
+    return 5.42101086242752217e-20*t;
+}
+
 //============================================================================
 // These are helper functions for the basics
 //============================================================================
@@ -89,7 +109,7 @@ void normal(double *pos, int obj, double *out){
         double invlen = 1./sqrt(dot(out, out));
         out[0] *= invlen;
         out[1] *= invlen;
-    } 
+    }
 }
 
 void reflect(double *r, double *normal, double *out, double restore){
@@ -183,7 +203,8 @@ int docollision(double *pos, double *vel, int last, double *tcoll, int *next){
     return outcome;
 }
 
-int trackBall(double *pos, double *vel, double eta, double xi, double *t){
+int trackBall(double *pos, double *vel, double eta, double xi, double *time,
+        int *bounces, int *lastact){
     int result, actlast, actnext;
     double tcoll, vlen, ttotal;
 
@@ -199,13 +220,16 @@ int trackBall(double *pos, double *vel, double eta, double xi, double *t){
         // get the next collision
         actlast = actnext;
         result = docollision(tpos, tvel, actlast, &tcoll, &actnext);
+        *lastact = actnext;
 
         // here we see if friction stops the ball 
         velocity(tvel, tcoll, eta, tmpvel);
-        if (!isnan(tcoll) && (tvel[0]*tmpvel[0] < 0 || tvel[1]*tmpvel[1] < 0))
-            break;//return 0;  // FIXME - should be break?
+        if (!isnan(tcoll) && (tvel[0]*tmpvel[0] < 0 || tvel[1]*tmpvel[1] < 0)){
+            result = RESULT_ONTABLE; 
+            break;
+        }
 
-        if (result == RESULT_NOTHING)  return 0;  // FIXME - should never
+        if (result == RESULT_NOTHING)  break;
         if (result == RESULT_INPOCKET) break;
 
         // figure out where it hit and what speed
@@ -219,10 +243,12 @@ int trackBall(double *pos, double *vel, double eta, double xi, double *t){
         normal(tpos, actnext, norm);
         reflect(tvel, norm, tvel, xi);
         tbounces++;
+
     }
 
-    *t = ttotal;
-    return tbounces;
+    *time = ttotal;
+    *bounces = tbounces;
+    return result;
 }
 
 

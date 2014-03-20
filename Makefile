@@ -1,4 +1,4 @@
-EXE=billiards
+EXE=billiards billiards-mc
 OBJECTS=billiardslib.o
 CFLAGS=-std=c99 -Wall -Wextra -pedantic -flto -O3 -m64 -Ofast -march=native -fopenmp -D_POSIX_C_SOURCE=199309L
 LDLIBS=-lm -lrt

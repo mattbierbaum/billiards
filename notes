@@ -20,3 +20,21 @@ Some effects that I want to document
  * can turn on the chaos by chaning the size of a ball that we introduce
    and look at effect vs. radius of ball
  * analyze angular error of shots I guess?
+
+calculating color from hue, sat
+ hue = 6*(atan2(ry, rx) + pi) / (2pi)
+ sat = sqrt(d)/radius
+
+ g = floor(hue)
+ f = hue - g
+
+ u = 255* (1-sat)
+ v = 255* (1- sat*f)
+ w = 255* (1 - sat*(1-f))
+
+Bin space into a fine grid. Shoot in one direction / speed and map
+the colors from bin to bin by where the end up in the dynamics.  e.g.
+shooting straight left with small speed will make a folder in the colors
+
+Start in one position.  Color each square by the velocity which causes
+the ball to end up in that position when dynamics are done

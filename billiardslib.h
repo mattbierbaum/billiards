@@ -12,6 +12,7 @@
 #define RESULT_NOTHING   0
 #define RESULT_COLLISION 1
 #define RESULT_INPOCKET  2
+#define RESULT_ONTABLE   3
 
 #define RADIUS_POCKET 60
 #define RADIUS_CORNER 25
@@ -28,12 +29,15 @@
 
 //========================================================
 /* These are functions that should be called externally */
-int trackBall(double *p, double *v, double eta, double xi, double *t);
+int trackBall(double *p, double *v, double eta, double xi, double *time,
+        int *bounces, int *lastact);
 int trackTrajectory(double *p, double *v, double eta, double xi, double *traj,
         int *tlen, int maxlen);
 
 //========================================================
 /* internal use functions only */
+void ran_seed(long seed);
+float ran_ran2();
 double mymod(double a, double b);
 double dot(double *r1, double *r2);
 double cross(double *a, double *b);
